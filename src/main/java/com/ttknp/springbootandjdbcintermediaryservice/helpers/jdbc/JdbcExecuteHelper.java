@@ -1,6 +1,8 @@
 package com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc;
 
 
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.annotation.IgnoreGenerateSQL;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -8,6 +10,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -119,13 +123,17 @@ public abstract class JdbcExecuteHelper  {
 
     // ------------ Insert & Update & Delete  ------------
     /** SimpleJdbcInsert class simplifies writing code to execute SQL INSERT statement, i.e. So you don’t have to write lengthy and tedious SQL Insert statement anymore just specify the table name, column names and parameter values. */
-    public <T> Integer executeSimpleInsertByBeanPropertySqlParameterSource(String schema, String table, String autoGenerateColumnName, T object) {
+    public <T> Integer executeSimpleInsertByBeanPropertySqlParameterSource(String schema, String table, String autoGenerateColumnName, String[] usingColumns,T object) {
         SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate);
         simpleJdbcInsert.withSchemaName(schema);
         simpleJdbcInsert.withTableName(table);
+
         if (autoGenerateColumnName != null) {
             simpleJdbcInsert.usingGeneratedKeyColumns(autoGenerateColumnName); // if you have auto generate number don't forget set it all
         }
+
+        simpleJdbcInsert.usingColumns(usingColumns);
+
         // As you can see, you don’t even have to specify parameter names and values, as long as you provide an object that has attributes same as the column names in the database table.
         return simpleJdbcInsert.execute(new BeanPropertySqlParameterSource(object));
     }

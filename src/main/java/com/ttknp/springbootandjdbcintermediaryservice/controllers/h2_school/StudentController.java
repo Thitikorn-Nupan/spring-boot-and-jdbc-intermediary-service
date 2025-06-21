@@ -12,9 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping(value = {"/student","/students"})
+@RequestMapping(value = {"/student", "/students"})
 public class StudentController {
     private final StudentService studentService;
+
     @Autowired
     public StudentController(StudentService studentService) {
         this.studentService = studentService;
@@ -64,18 +65,15 @@ public class StudentController {
     }
 
 
-
-
-
     @GetMapping(value = "/selectOneById")
-    private ResponseEntity<Student> getStudentById(@RequestParam("id") Long id , @RequestParam("con") Boolean con) {
+    private ResponseEntity<Student> getStudentById(@RequestParam("id") Long id, @RequestParam("con") Boolean con) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(studentService.getStudentById(con, id));
     }
 
     @GetMapping(value = "/selectOneOnlyColumnBy")
-    private ResponseEntity<?> getPropertyStudentBy(@RequestParam("property") String property, @RequestParam("id") Long id ) {
+    private ResponseEntity<?> getPropertyStudentBy(@RequestParam("property") String property, @RequestParam("id") Long id) {
         Object PropertyStudent = switch (property) {
             case "level" -> studentService.getStudentLevelById(id);
             case "full_name" -> studentService.getStudentFullNameById(id);
@@ -102,14 +100,27 @@ public class StudentController {
     }
 
 
-
     @PostMapping(value = "/save")
-    private ResponseEntity<Integer> saveStudent(@RequestBody Student student) {
+    private ResponseEntity<Integer> saveStudent(@RequestBody Student student, @RequestParam("method") String method) {
+        Integer rowAffected = 0;
+        // old writing of switch case
+        switch (method) {
+            case "saveStudentSimpleInsert":
+                rowAffected = studentService.saveStudentSimpleInsert(student);
+                break;
+            case "saveStudent":
+                rowAffected = studentService.saveStudent(student);
+                break;
+            case "saveStudentApplyAnnotation":
+                rowAffected = studentService.saveStudentApplyAnnotation(student);
+                break;
+            default:
+                break;
+        }
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
-                .body(studentService.saveStudent(student));
+                .body(rowAffected);
     }
-
 
 
 }

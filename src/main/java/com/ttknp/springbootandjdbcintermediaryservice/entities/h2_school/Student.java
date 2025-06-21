@@ -2,6 +2,7 @@ package com.ttknp.springbootandjdbcintermediaryservice.entities.h2_school;
 
 
 
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.annotation.IgnoreGenerateSQL;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -14,12 +15,14 @@ import java.util.Date;
 @Table(name = "students",schema = "h2_school")
 public class Student {
 
+    @IgnoreGenerateSQL
     private Long sid;
     @Column("full_name")
     private String fullName;
     private Date birthday;
     private String level;
-    // private String teacherName;
+    @IgnoreGenerateSQL
+    private String teacherName;
 
     public Student() {}
 

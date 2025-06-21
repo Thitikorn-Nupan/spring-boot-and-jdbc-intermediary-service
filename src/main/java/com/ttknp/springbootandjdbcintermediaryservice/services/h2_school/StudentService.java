@@ -104,7 +104,24 @@ public class StudentService {
     public Integer saveStudent(Student student) {
         return jdbcInsertUpdateDeleteHelper.insertOne(
                 Student.class,
-                new String[]{"sid"},
+                new String[]{"sid","teacherName"},
+                student.getFullName(),
+                student.getBirthday(),
+                student.getLevel()
+        );
+    }
+
+    public Integer saveStudentSimpleInsert(Student student) {
+        return jdbcInsertUpdateDeleteHelper.insertOne(
+                Student.class,
+                "teacherName",
+                student
+        );
+    }
+
+    public Integer saveStudentApplyAnnotation(Student student) {
+        return jdbcInsertUpdateDeleteHelper.insertOne(
+                Student.class,
                 student.getFullName(),
                 student.getBirthday(),
                 student.getLevel()
