@@ -1,5 +1,6 @@
 package com.ttknp.springbootandjdbcintermediaryservice.entities.h2_school;
 
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.annotation.IgnoreGenerateSQL;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -8,6 +9,7 @@ import java.util.Date;
 // @Table(..) No need if you don't use @Repository on CrudRepository, But if you want to get table/schema name you can mark it
 @Table(name = "students_contract",schema = "h2_school")
 public class StudentContract {
+    @IgnoreGenerateSQL
     private Long cid;
     private Long sid;
     @Column("contract_type")

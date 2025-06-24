@@ -5,20 +5,20 @@ import com.ttknp.springbootandjdbcintermediaryservice.entities.h2_school.Student
 // import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.insert_update_delete.JdbcInsertUpdateDeleteHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.insert_update_delete.JdbcInsertUpdateDeleteHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.select.JdbcSelectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Service;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class StudentService {
 
+    private static final Logger log = LoggerFactory.getLogger(StudentService.class);
     private final JdbcSelectHelper<Student> jdbcSelectHelper;
     private final JdbcInsertUpdateDeleteHelper<Student> jdbcInsertUpdateDeleteHelper;
 
@@ -101,6 +101,7 @@ public class StudentService {
 
 
 
+
     public Integer saveStudent(Student student) {
         return jdbcInsertUpdateDeleteHelper.insertOne(
                 Student.class,
@@ -119,7 +120,7 @@ public class StudentService {
         );
     }
 
-    public Integer saveStudentApplyAnnotation(Student student) {
+    public Integer saveStudentApplyAnnotationOwnMapParams(Student student) {
         return jdbcInsertUpdateDeleteHelper.insertOne(
                 Student.class,
                 student.getFullName(),
@@ -127,6 +128,88 @@ public class StudentService {
                 student.getLevel()
         );
     }
+
+    public Integer saveStudentApplyAnnotationAutoMapParams(Student student) {
+        try {
+            return jdbcInsertUpdateDeleteHelper.insertOne(
+                    Student.class,
+                    student
+            );
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void saveStudentDemo(Long id,String fullName) {
+        HashMap<String,Object> params = new HashMap<>();
+        params.put("{SID}",id);
+        params.put("{FULL_NAME}",fullName);
+        params.put("{BIRTHDAY}","1999-01-01");
+        params.put("{LEVEL}","B+");
+        jdbcInsertUpdateDeleteHelper.executeStatement("demo_insert_student.sql",params);
+    }
+
+
+
+
+    public Integer editStudentApplyAnnotationOwnMapParams(Student student,String uniqKey) {
+        return jdbcInsertUpdateDeleteHelper.updateOne(
+                Student.class,
+                uniqKey,
+                student.getFullName(),
+                student.getBirthday(),
+                student.getLevel(),
+                student.getSid()
+        );
+    }
+
+    public Integer editStudentApplyAnnotationAutoMapParams(Student student,String uniqKey) {
+        try {
+            return jdbcInsertUpdateDeleteHelper.updateOne(
+                    Student.class,
+                    uniqKey,
+                    student
+            );
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
+
+    public Integer removeStudentById(Long id) {
+        try {
+            return jdbcInsertUpdateDeleteHelper.deleteOne(Student.class,"SID",id);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Integer removeBackupStudentById(Long id) {
+        try {
+            if (jdbcSelectHelper.selectCount(Student.class,"SID",id) > 0) {
+                // log.debug("Found student with id {}",id);
+                HashMap<String,Object> params = new HashMap<>();
+                params.put("{SID}",id);
+                params.put("[SID]","SID");
+                jdbcInsertUpdateDeleteHelper.executeStatement("backup_delete_student.sql",params);
+                return jdbcInsertUpdateDeleteHelper.deleteOne(Student.class,"SID",id);
+            }
+          return 0;
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
+
+    public void reloadStudents() {
+        // can truncate because it has a relation table
+    }
+
+
 
 
     private static class StudentListResultSetExtractor implements ResultSetExtractor<List<Student>> {

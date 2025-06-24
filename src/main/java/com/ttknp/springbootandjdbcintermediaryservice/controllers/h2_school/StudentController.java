@@ -21,6 +21,9 @@ public class StudentController {
         this.studentService = studentService;
     }
 
+
+
+
     @GetMapping(value = {"/", "/selectAll"})
     private ResponseEntity<List<Student>> getStudents() {
         return ResponseEntity
@@ -64,7 +67,6 @@ public class StudentController {
                 .body(propStudents);
     }
 
-
     @GetMapping(value = "/selectOneById")
     private ResponseEntity<Student> getStudentById(@RequestParam("id") Long id, @RequestParam("con") Boolean con) {
         return ResponseEntity
@@ -84,7 +86,6 @@ public class StudentController {
                 .body(PropertyStudent);
     }
 
-
     @GetMapping(value = "/selectTotal")
     private ResponseEntity<Integer> getTotalStudents() {
         return ResponseEntity
@@ -100,6 +101,25 @@ public class StudentController {
     }
 
 
+
+
+
+    @PostMapping(value = "/reload")
+    private ResponseEntity<Integer> reloadStudents() {
+        studentService.reloadStudents();
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(1);
+    }
+
+    @PostMapping(value = "/saveDemo")
+    private ResponseEntity<Integer> saveStudent(@RequestParam("id") Long id,@RequestParam("fullName") String fullName) {
+        studentService.saveStudentDemo(id,fullName);
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(1);
+    }
+
     @PostMapping(value = "/save")
     private ResponseEntity<Integer> saveStudent(@RequestBody Student student, @RequestParam("method") String method) {
         Integer rowAffected = 0;
@@ -111,8 +131,11 @@ public class StudentController {
             case "saveStudent":
                 rowAffected = studentService.saveStudent(student);
                 break;
-            case "saveStudentApplyAnnotation":
-                rowAffected = studentService.saveStudentApplyAnnotation(student);
+            case "saveStudentApplyAnnotationOwnMapParams":
+                rowAffected = studentService.saveStudentApplyAnnotationOwnMapParams(student);
+                break;
+            case "saveStudentApplyAnnotationAutoMapParams":
+                rowAffected = studentService.saveStudentApplyAnnotationAutoMapParams(student);
                 break;
             default:
                 break;
@@ -120,6 +143,45 @@ public class StudentController {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(rowAffected);
+    }
+
+
+
+
+    @PutMapping(value = "/edit")
+    private ResponseEntity<Integer> editStudent(@RequestBody Student student, @RequestParam("uniqKey") String uniqKey,@RequestParam("method") String method) {
+        Integer rowAffected = 0;
+        // old writing of switch case
+        switch (method) {
+            case "editStudentApplyAnnotationOwnMapParams":
+                rowAffected = studentService.editStudentApplyAnnotationOwnMapParams(student,uniqKey);
+                break;
+            case "editStudentApplyAnnotationAutoMapParams":
+                rowAffected = studentService.editStudentApplyAnnotationAutoMapParams(student,uniqKey);
+                break;
+            default:
+                break;
+        }
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(rowAffected);
+    }
+
+
+
+
+    @DeleteMapping(value = "/removeOneById")
+    private ResponseEntity<Integer> removeStudentById(@RequestParam("id") Long id) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(studentService.removeStudentById(id));
+    }
+
+    @DeleteMapping(value = "/removeBackupOneById")
+    private ResponseEntity<Integer> removeBackupStudentById(@RequestParam("id") Long id) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(studentService.removeBackupStudentById(id));
     }
 
 

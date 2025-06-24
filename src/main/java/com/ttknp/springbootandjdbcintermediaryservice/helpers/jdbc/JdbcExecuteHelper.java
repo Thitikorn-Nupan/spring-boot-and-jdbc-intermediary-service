@@ -1,17 +1,10 @@
 package com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc;
-
-
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.annotation.IgnoreGenerateSQL;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
-
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -26,12 +19,14 @@ public abstract class JdbcExecuteHelper  {
     }
 
     /**
-     Select all ******
-     Select one ******
-     Select count ******
-     Insert
-     Update
-     Delete
+     What JdbcExecuteHelper can do ?
+     1. Select all
+     2. Select one
+     3. Select count
+     4. Insert ******
+     5. Update ******
+     6. Delete ******
+     7. Execute as script ******
     */
 
     /** Note, U can only be String , Integer , ... any types but not an Object like POJO */
@@ -64,6 +59,17 @@ public abstract class JdbcExecuteHelper  {
 
 
 
+
+
+    // ------------  For query(ies) no return  ------------
+    public void executeQueryForStatement(String sql) {
+        jdbcTemplate.execute(sql);
+    }
+
+
+
+
+
     // ------------ Select as List ------------
     public List<Map<String, Object>> executeQueryForList(String sql , Object... params) { // queryForList, it works for rows, but not recommend, the mapping in Map may not same as the object, need casting.
         return jdbcTemplate.queryForList(sql,params);
@@ -87,6 +93,7 @@ public abstract class JdbcExecuteHelper  {
 
 
 
+
     // ------------ Select as An Object ------------
     public <T> T executeQueryForObjectByBeanPropertyRowMapper(String sql, BeanPropertyRowMapper<T> beanPropertyRowMapper) {
         return executeQueryForObject(sql, beanPropertyRowMapper ,null);
@@ -98,7 +105,8 @@ public abstract class JdbcExecuteHelper  {
 
 
 
-    // ------------ Select as An Property ------------
+
+    // ------------ Select as An Property (as select count,select one column) ------------
     public <U> U executeQueryForObjectPropertyNoMapping(String sql, Class<U> aClassType) {
         return executeQueryForObjectProperty(sql, aClassType ,null);
     }
@@ -106,6 +114,7 @@ public abstract class JdbcExecuteHelper  {
     public <U> U executeQueryForObjectPropertyParamsNoMapping(String sql, Class<U> aClassType , Object  ...params) {
         return executeQueryForObjectProperty(sql, aClassType ,params);
     }
+
 
 
 
@@ -121,7 +130,7 @@ public abstract class JdbcExecuteHelper  {
 
 
 
-    // ------------ Insert & Update & Delete  ------------
+    // ------------ Insert ------------
     /** SimpleJdbcInsert class simplifies writing code to execute SQL INSERT statement, i.e. So you don’t have to write lengthy and tedious SQL Insert statement anymore just specify the table name, column names and parameter values. */
     public <T> Integer executeSimpleInsertByBeanPropertySqlParameterSource(String schema, String table, String autoGenerateColumnName, String[] usingColumns,T object) {
         SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate);
@@ -142,15 +151,29 @@ public abstract class JdbcExecuteHelper  {
         return executeUpdateForObject(sql , params);
     }
 
+    public Integer executeUpdateForInsert(String sql,List<Object> params) {
+        return executeUpdateForObject(sql , params.toArray()); // have to convert to array as Object ...params
+    }
 
+
+
+
+
+    // ------------ Update ------------
     public Integer executeUpdateForUpdate(String sql,Object  ...params) {
         return executeUpdateForObject(sql , params);
     }
 
-    public Integer executeUpdateForDelete(String sql,Object  ...params) {
-        return executeUpdateForObject(sql , params);
+    public Integer executeUpdateForUpdate(String sql,List<Object> params) {
+        return executeUpdateForObject(sql , params.toArray());
     }
 
 
+
+
+    // ------------ Delete ------------
+    public Integer executeUpdateForDelete(String sql,Object  ...params) {
+        return executeUpdateForObject(sql , params);
+    }
 
 }

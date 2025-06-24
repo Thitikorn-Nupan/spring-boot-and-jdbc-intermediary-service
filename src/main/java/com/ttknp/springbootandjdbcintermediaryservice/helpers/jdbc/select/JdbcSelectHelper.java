@@ -83,6 +83,8 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
 
 
 
+
+
     // ------------ Select as An Object ------------
     public T selectOne(Class<T> aBeanClass, String uniqColumnName, Object uniqValue) {
         StringBuilder stringBuilder = new StringBuilder()
@@ -101,6 +103,9 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
     public T selectOne(String sql , Class<T> aBeanClass) {
         return executeQueryForObjectByBeanPropertyRowMapper(sql, new BeanPropertyRowMapper<T>(aBeanClass));
     }
+
+
+
 
 
 
@@ -135,6 +140,9 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
 
 
 
+
+
+
     // ------------ Select as List Or Object  ------------
     public <U> U selectBoth(Class<T> aBeanClass, ResultSetExtractor<U> resultSetExtractor) {
         StringBuilder stringBuilder = new StringBuilder()
@@ -152,4 +160,5 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         value = "%"+value.toString()+"%";
         return executeResultSetExtractorParams(stringBuilder.toString(), resultSetExtractor, value);
     }
+
 }

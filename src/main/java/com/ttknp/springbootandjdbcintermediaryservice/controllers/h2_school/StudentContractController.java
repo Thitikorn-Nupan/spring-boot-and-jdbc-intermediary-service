@@ -22,7 +22,7 @@ public class StudentContractController {
     }
 
     @GetMapping(value = {"/", "/selectAll"})
-    private ResponseEntity<List<StudentContract>> getTeachers() {
+    private ResponseEntity<List<StudentContract>> getStudentsContracts() {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(studentContractService.getAllStudentContracts());
@@ -30,9 +30,18 @@ public class StudentContractController {
 
 
     @PostMapping(value = "/save")
-    private ResponseEntity<Integer> saveTeacher(@RequestBody StudentContract studentContract) {
+    private ResponseEntity<Integer> saveStudentContract(@RequestBody StudentContract studentContract) {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(studentContractService.saveStudentContract(studentContract));
     }
+
+    @PostMapping(value = "/reload")
+    private ResponseEntity<Integer> reloadStudents() {
+        studentContractService.reloadStudentsContracts();
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(1);
+    }
+
 }

@@ -27,6 +27,7 @@ public class StudentContractService {
     }
 
 
+    /*
     public Integer saveStudentContract(StudentContract studentContract) {
         return jdbcInsertUpdateDeleteHelper.insertOne(
                 StudentContract.class,
@@ -43,6 +44,7 @@ public class StudentContractService {
                 studentContract.getContractStatus()
         );
     }
+    */
 
     /*
     // Same
@@ -50,4 +52,20 @@ public class StudentContractService {
         return jdbcInsertUpdateDeleteHelper.insertOne(StudentContract.class, "cid",studentContract);
     }
     */
+
+    // Same
+    public Integer saveStudentContract(StudentContract studentContract) {
+        try {
+            return jdbcInsertUpdateDeleteHelper.insertOne(StudentContract.class, studentContract);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void reloadStudentsContracts() {
+        jdbcInsertUpdateDeleteHelper.executeStatement("clear_students_contracts.sql");
+        jdbcInsertUpdateDeleteHelper.executeStatement("insert_students_contracts.sql");
+    }
+
+
 }

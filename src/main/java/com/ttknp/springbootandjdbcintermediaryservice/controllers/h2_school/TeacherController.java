@@ -35,4 +35,11 @@ public class TeacherController {
                 .status(HttpStatus.ACCEPTED)
                 .body(teacherService.saveTeacher(teacher));
     }
+
+    @PutMapping(value = "/edit")
+    private ResponseEntity<Integer> editTeacher(@RequestBody Teacher teacher) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(teacherService.editTeacher(teacher));
+    }
 }

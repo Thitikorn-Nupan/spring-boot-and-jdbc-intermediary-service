@@ -14,6 +14,7 @@ public class TeacherService {
 
     private final JdbcInsertUpdateDeleteHelper<Teacher> jdbcInsertUpdateDeleteHelper;
     private final JdbcSelectHelper<Teacher> jdbcSelectHelper;
+
     @Autowired
     public TeacherService(JdbcInsertUpdateDeleteHelper<Teacher> jdbcInsertUpdateDeleteHelper, JdbcSelectHelper<Teacher> jdbcSelectHelper) {
         this.jdbcInsertUpdateDeleteHelper = jdbcInsertUpdateDeleteHelper;
@@ -26,14 +27,26 @@ public class TeacherService {
     }
 
 
-
     public Integer saveTeacher(Teacher teacher) {
-        return jdbcInsertUpdateDeleteHelper.insertOne(
-                Teacher.class,
-                new String[]{"tid"},
-                teacher.getFullName(),
-                teacher.getBirthday(),
-                teacher.getClassId()
-        );
+        try {
+            return jdbcInsertUpdateDeleteHelper.insertOne(
+                    Teacher.class,
+                    teacher
+            );
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Integer editTeacher(Teacher teacher) {
+        try {
+            return jdbcInsertUpdateDeleteHelper.updateOne(
+                    Teacher.class,
+                    "tid",
+                    teacher
+            );
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
