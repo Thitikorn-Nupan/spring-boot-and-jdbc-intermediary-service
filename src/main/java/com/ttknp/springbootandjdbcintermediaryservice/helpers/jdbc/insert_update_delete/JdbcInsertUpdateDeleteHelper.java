@@ -287,6 +287,90 @@ public class JdbcInsertUpdateDeleteHelper<T> extends JdbcExecuteHelper {
         return executeSimpleInsertByBeanPropertySqlParameterSource(schema,tableName,autoGenerateColumnName, columns.toArray(new String[0]) , object);
     }
 
+    // ------------ Dynamic insert statement auto map params (*** apply custom annotation) *** have subclass ------------
+    public Integer insertOneIsPkSubclass(Class<T> aBeanClass, T aBeanObject) throws IllegalAccessException {
+        StringBuilder stringBuilderSQL, stringBuilderSQLValues;
+
+        stringBuilderSQL = new StringBuilder();
+        stringBuilderSQLValues = new StringBuilder();
+
+        stringBuilderSQL.append(SQLSyntaxCommon.INSERT);
+        stringBuilderSQL.append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
+        stringBuilderSQL.append(" (");
+
+        stringBuilderSQLValues.append(" values (");
+
+
+        List<Field> fields = new ArrayList<>();
+
+        if (aBeanClass.getSuperclass() != null) { // check if have a subclass then get all fields
+            Class<?> superclass = aBeanClass.getSuperclass();
+            for (Field field : superclass.getDeclaredFields()) {
+                fields.add(field);
+            }
+        }
+
+        for (Field field : aBeanClass.getDeclaredFields()) { // get all field of main class
+            fields.add(field);
+        }
+        // now field already works
+
+        List<Object> objectsValues = new ArrayList<>();
+
+        for (int i = 0; i < fields.size(); i++) {
+
+            Field field = fields.get(i);
+
+            if (!field.isAnnotationPresent(IgnoreGenerateSQL.class)) {
+
+                // **** Make the field accessible if it's private
+                field.setAccessible(true);
+                Column columnAnnotation = null;
+                String fieldName;
+                Object fieldValue;
+
+                if (field.isAnnotationPresent(Column.class)) {
+                    columnAnnotation = field.getAnnotation(Column.class);
+                }
+
+                if (columnAnnotation != null) { // check if property name (POJO) it's not the same column name (Field Table)
+                    fieldName = columnAnnotation.value();  // columnAnnotation => @org.springframework.data.relational.core.mapping.Column("full_name") columnAnnotation.value() =>  full_name
+                } else {
+                    fieldName = field.getName();
+                }
+
+                stringBuilderSQL
+                        .append(fieldName)
+                        .append(" ,");
+
+                stringBuilderSQLValues
+                        .append(SQLSyntaxCommon.ASSIGN)
+                        .append(" ,");
+
+
+                // **** Get the value of the field for the specific POJO instance
+                fieldValue = field.get(aBeanObject);
+                // log.debug("Field Name: {} , Value: {}" ,fieldName, fieldValue);
+                objectsValues.add(fieldValue);
+            }
+
+        } // end for
+
+        stringBuilderSQL
+                .deleteCharAt(stringBuilderSQL.length() - 1)
+                .append(")");
+
+        stringBuilderSQLValues
+                .deleteCharAt(stringBuilderSQLValues.length() - 1)
+                .append(")");
+
+        stringBuilderSQL
+                .append(stringBuilderSQLValues);
+
+        log.debug("sql insert = {}", stringBuilderSQL.toString());
+        return executeUpdateForInsert(stringBuilderSQL.toString(), objectsValues);
+    }
+
 
 
 
@@ -419,6 +503,96 @@ public class JdbcInsertUpdateDeleteHelper<T> extends JdbcExecuteHelper {
         return executeUpdateForUpdate(stringBuilderSQL.toString(),objectsValues);
     }
 
+    // ------------ Dynamic update statement auto map param (*** apply custom annotation) *** have subclass  ------------
+    public Integer updateOneIsPkSubclass(Class<T> aBeanClass, String uniqColumnName, T aBeanObject) throws IllegalAccessException {
+
+        StringBuilder stringBuilderSQL;
+        stringBuilderSQL = new StringBuilder();
+
+        stringBuilderSQL.append(SQLSyntaxCommon.UPDATE);
+        stringBuilderSQL.append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
+        stringBuilderSQL.append(" set ");
+
+        List<Field> fields = new ArrayList<>();
+
+        if (aBeanClass.getSuperclass() != null) { // check if have a subclass then get all fields
+            Class<?> superclass = aBeanClass.getSuperclass();
+            for (Field field : superclass.getDeclaredFields()) {
+                fields.add(field);
+            }
+        }
+
+        for (Field field : aBeanClass.getDeclaredFields()) { // get all field of main class
+            fields.add(field);
+        }
+        // now field already works
+
+        List<Object> objectsValues = new ArrayList<>();
+
+        for (Field field : fields) {
+
+            if (!field.isAnnotationPresent(IgnoreGenerateSQL.class)) {
+
+                field.setAccessible(true); // **** Make the field accessible if it's private
+                Column columnAnnotation = null;
+                String fieldName;
+                Object fieldValue;
+
+                if (field.isAnnotationPresent(Column.class)) {
+                    columnAnnotation = field.getAnnotation(Column.class);
+                }
+
+                if (columnAnnotation != null) { // check if property name (POJO) it's not the same column name (Field Table)
+                    fieldName = columnAnnotation.value();  // columnAnnotation => @org.springframework.data.relational.core.mapping.Column("full_name") columnAnnotation.value() =>  full_name
+                } else {
+                    fieldName = field.getName();
+                }
+
+                if (!uniqColumnName.equals(fieldName)) { // uniqColumnName.equals(fieldName) have to do on last element
+                    stringBuilderSQL.append(fieldName)
+                            .append(SQLSyntaxCommon.ASSIGN_EQUAL)
+                            .append(" ,");
+
+                    fieldValue = field.get(aBeanObject); // **** Get the value of the field for the specific POJO instance
+                    log.debug("Field Name: {} , Value: {}", fieldName, fieldValue);
+                    objectsValues.add(fieldValue);
+                }
+
+            }
+
+        } // end for
+
+
+        for (Field field : fields) {
+            String fieldName;
+            Column columnAnnotation = null;
+            if (field.isAnnotationPresent(Column.class)) {
+                columnAnnotation = field.getAnnotation(Column.class);
+            }
+            if (columnAnnotation != null) { // check if property name (POJO) it's not the same column name (Field Table)
+                fieldName = columnAnnotation.value();  // columnAnnotation => @org.springframework.data.relational.core.mapping.Column("full_name") columnAnnotation.value() =>  full_name
+            } else {
+                fieldName = field.getName();
+            }
+            Object fieldValue;
+            if (uniqColumnName.equals(fieldName)) {
+                field.setAccessible(true); // **** Make the field accessible if it's private
+                fieldValue = field.get(aBeanObject); // **** Get the value of the field for the specific POJO instance
+                log.debug("Field Name: {} , Value: {}", fieldName, fieldValue);
+                objectsValues.add(fieldValue);
+            }
+        }
+
+        stringBuilderSQL
+                .deleteCharAt(stringBuilderSQL.length() - 1)
+                .append(" where ")
+                .append(uniqColumnName)
+                .append(SQLSyntaxCommon.ASSIGN_EQUAL);
+
+        log.debug("sql update = {}", stringBuilderSQL.toString());
+        return executeUpdateForUpdate(stringBuilderSQL.toString(), objectsValues);
+    }
+
 
 
 
@@ -435,6 +609,7 @@ public class JdbcInsertUpdateDeleteHelper<T> extends JdbcExecuteHelper {
         log.debug("sql delete = {}", stringBuilderSQL.toString());
         return executeUpdateForDelete(stringBuilderSQL.toString(),uniqValue);
     }
+
 
 
 
