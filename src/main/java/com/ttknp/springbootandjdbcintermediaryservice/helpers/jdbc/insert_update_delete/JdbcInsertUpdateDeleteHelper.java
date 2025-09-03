@@ -630,7 +630,7 @@ public class JdbcInsertUpdateDeleteHelper<T> extends JdbcExecuteHelper {
         executeQueryForStatement(stringBuilderSQL.toString());
     }
 
-    // Helpers for execute***
+    // Helpers for execute ***
     private static void replaceAssignValuesByHasMap(StringBuilder stringBuilderSQL, HashMap<String,Object> params) {
         String sql = stringBuilderSQL.toString();
         int paramCount = params.size();
