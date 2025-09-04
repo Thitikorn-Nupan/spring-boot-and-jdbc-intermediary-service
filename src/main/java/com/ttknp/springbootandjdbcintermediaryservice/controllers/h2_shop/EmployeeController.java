@@ -1,9 +1,11 @@
 package com.ttknp.springbootandjdbcintermediaryservice.controllers.h2_shop;
 
 
+import com.ttknp.springbootandjdbcintermediaryservice.entities.h2_shop.Customer;
 import com.ttknp.springbootandjdbcintermediaryservice.entities.h2_shop.Employee;
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by.SqlOrderByHelper;
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by.entity.RequestOrderBy;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlOrderByHelper;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlWhereHelper;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.entity.RequestOrderBy;
 import com.ttknp.springbootandjdbcintermediaryservice.services.h2_shop.EmployeeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +78,7 @@ public class EmployeeController {
      }
      */
     @GetMapping(value = "/selectAllOrderBy")
-    private ResponseEntity<List<Employee>> getAllCustomersOrderBy(@RequestBody(required = false) RequestOrderBy requestOrderBy) {
+    private ResponseEntity<List<Employee>> getAllEmployeesOrderBy(@RequestBody(required = false) RequestOrderBy requestOrderBy) {
         SqlOrderByHelper<Employee> sqlOrderByHelper = null;
         if (requestOrderBy != null) {
             if (!requestOrderBy.getOrderBy().isEmpty()) {
@@ -94,5 +96,33 @@ public class EmployeeController {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(employeeService.getAllEmployeesOrderBy(sqlOrderByHelper));
+    }
+
+    @GetMapping(value = "/selectAllWhereAndOrderBy")
+    private ResponseEntity<List<Employee>> getAllEmployeesWhereAndOrderBy(@RequestBody(required = false) RequestOrderBy<Employee> requestOrderBy) {
+        SqlWhereHelper<Employee> sqlWhereHelper = null;
+        SqlOrderByHelper<Employee> sqlOrderByHelper = null;
+        Employee employee = requestOrderBy.getWhereModel() != null ? requestOrderBy.getWhereModel() : null;
+        if (requestOrderBy != null) {
+            if (requestOrderBy.getWhereModel() != null) {
+                sqlWhereHelper = ((stringBuilder, alias, model) -> {
+                    String whereAsString = requestOrderBy.getWhereModelIsPkSubclass(alias); // Case class have primary key on subclass
+                    // String whereAsString = requestOrderBy.getWhereModel(alias); // Case class have no primary key on subclass
+                    stringBuilder.append(whereAsString);
+                    log.debug("sql after append where = {}",stringBuilder.toString());
+                });
+            }
+
+            if (requestOrderBy.getOrderBy() != null && !requestOrderBy.getOrderBy().isEmpty()) {
+                sqlOrderByHelper = ((stringBuilder, alias, model) -> {
+                    String orderByAsString = requestOrderBy.getOrderBy(alias, requestOrderBy.getOrderBy());
+                    stringBuilder.append(orderByAsString);
+                    log.debug("sql after append order by = {}",stringBuilder.toString());
+                });
+            }
+        }
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(employeeService.getAllEmployeesWhereAndOrderBy(sqlOrderByHelper, sqlWhereHelper, employee));
     }
 }

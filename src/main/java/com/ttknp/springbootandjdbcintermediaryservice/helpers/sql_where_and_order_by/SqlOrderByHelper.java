@@ -1,4 +1,4 @@
-package com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by;
+package com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by;
 
 /// New concept for helping to build sql statement with order by clause
 public interface SqlOrderByHelper <T> {

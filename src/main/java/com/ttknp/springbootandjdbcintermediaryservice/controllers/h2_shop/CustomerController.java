@@ -1,9 +1,10 @@
 package com.ttknp.springbootandjdbcintermediaryservice.controllers.h2_shop;
 
 
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by.entity.RequestOrderBy;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlWhereHelper;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.entity.RequestOrderBy;
 import com.ttknp.springbootandjdbcintermediaryservice.entities.h2_shop.Customer;
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by.SqlOrderByHelper;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlOrderByHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.services.h2_shop.CustomerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public class CustomerController {
       }
     */
     @GetMapping(value = "/selectAllOrderBy")
-    private ResponseEntity<List<Customer>> getAllCustomersOrderBy(@RequestBody(required = false) RequestOrderBy requestOrderBy) {
+    private ResponseEntity<List<Customer>> getAllCustomersOrderBy(@RequestBody(required = false) RequestOrderBy<Customer> requestOrderBy) {
         SqlOrderByHelper<Customer> sqlOrderByHelper = null;
         if (requestOrderBy != null) {
             // log.debug(" orderBy (list) = {}", requestOrderBy.getOrderBy()); // [OrderBy{column='level', direction='desc'}, OrderBy{column='full_name', direction='asc'}]
@@ -112,21 +113,49 @@ public class CustomerController {
     }
 
 
-    @GetMapping(value = "/getAllCustomersOrderByAndReplaceAssignValues")
-    private ResponseEntity<List<Customer>> getAllCustomersOrderByAndReplaceAssignValues(@RequestBody(required = false) RequestOrderBy requestOrderBy) {
+    @GetMapping(value = "/selectAllOrderByAndReplaceAssignValues")
+    private ResponseEntity<List<Customer>> getAllCustomersOrderByAndReplaceAssignValues(@RequestBody(required = true) RequestOrderBy<Customer> requestOrderBy) {
         SqlOrderByHelper<Customer> sqlOrderByHelper = null;
         if (requestOrderBy != null) {
-            if (!requestOrderBy.getOrderBy().isEmpty()) {
+            if (requestOrderBy.getOrderBy() != null && !requestOrderBy.getOrderBy().isEmpty()) {
                 sqlOrderByHelper = ((stringBuilder, alias, model) -> {
                     String orderByAsString = requestOrderBy.getOrderBy(alias, requestOrderBy.getOrderBy());
                     stringBuilder.append(orderByAsString);
                 });
             }
-
         }
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(customerService.getAllCustomersOrderByAndReplaceAssignValues(sqlOrderByHelper));
+    }
+
+
+    @GetMapping(value = "/selectAllWhereAndOrderBy")
+    private ResponseEntity<List<Customer>> getAllCustomersWhereAndOrderBy(@RequestBody(required = false) RequestOrderBy<Customer> requestOrderBy) {
+        SqlWhereHelper<Customer> sqlWhereHelper = null;
+        SqlOrderByHelper<Customer> sqlOrderByHelper = null;
+        Customer customer = requestOrderBy.getWhereModel() != null ? requestOrderBy.getWhereModel() : null;
+        if (requestOrderBy != null) {
+            if (requestOrderBy.getWhereModel() != null) {
+                sqlWhereHelper = ((stringBuilder, alias, model) -> {
+                    String whereAsString = requestOrderBy.getWhereModelIsPkSubclass(alias); // Case class have primary key on subclass
+                    // String whereAsString = requestOrderBy.getWhereModel(alias); // Case class have no primary key on subclass
+                    stringBuilder.append(whereAsString);
+                    log.debug("sql after append where = {}",stringBuilder.toString());
+               });
+            }
+
+            if (requestOrderBy.getOrderBy() != null && !requestOrderBy.getOrderBy().isEmpty()) {
+                sqlOrderByHelper = ((stringBuilder, alias, model) -> {
+                    String orderByAsString = requestOrderBy.getOrderBy(alias, requestOrderBy.getOrderBy());
+                    stringBuilder.append(orderByAsString);
+                    log.debug("sql after append order by = {}",stringBuilder.toString());
+                });
+            }
+        }
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(customerService.getAllCustomersWhereAndOrderBy(sqlOrderByHelper, sqlWhereHelper, customer));
     }
 
 }

@@ -21,7 +21,7 @@ public class Employee extends PKUUID {
 
 
     public Employee() {
-        super(UUID.randomUUID().toString());
+        super(null);
     }
 
     public Employee( String fullName, Date birthday, String level) {

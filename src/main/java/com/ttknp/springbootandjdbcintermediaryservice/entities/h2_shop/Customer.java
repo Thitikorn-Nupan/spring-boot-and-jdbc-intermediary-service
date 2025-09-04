@@ -1,11 +1,8 @@
 package com.ttknp.springbootandjdbcintermediaryservice.entities.h2_shop;
 
-
-
 import com.ttknp.springbootandjdbcintermediaryservice.entities.h2_shop.pk.PKUUID;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-
 import java.util.Date;
 import java.util.UUID;
 
@@ -20,7 +17,7 @@ public class Customer extends PKUUID {
 
 
     public Customer() {
-        super(UUID.randomUUID().toString());
+        super(null);
     }
 
     public Customer(String fullName, Date birthday, String level) {

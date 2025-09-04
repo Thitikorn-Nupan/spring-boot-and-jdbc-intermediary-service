@@ -1,20 +1,25 @@
 package com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.select;
 
-import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_order_by.SqlOrderByHelper;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlOrderByHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.JdbcExecuteHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_common.SQLSyntaxCommon;
+import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlWhereHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.services.useful.UsefulGetSQLStatement;
 import com.ttknp.springbootandjdbcintermediaryservice.services.useful.UsefulJdbcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Service;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.lang.reflect.Field;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 
 @Service
@@ -44,28 +49,117 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         StringBuilder stringBuilder = new StringBuilder()
                 .append(SQLSyntaxCommon.SELECT_START)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
-        log.debug("before stringBuilder thru implement = {}",stringBuilder.toString()); // First step => select * from h2_shop.customers
+        log.debug("before stringBuilder thru implement = {}", stringBuilder.toString()); // First step => select * from h2_shop.customers
         if (sqlOrderByHelper != null) {
             String alias = SQLSyntaxCommon.ALIAS;
             stringBuilder.append(" as ")
-                         .append(alias)
-                         .append(" order by ");
+                    .append(alias)
+                    .append(" order by ");
             // Second step => select * from h2_shop.customers as alias order by
             /*
                 Note!! appendOrderBy(...) works on CustomerController class or class that implement SqlOrderByHelper interface
                 Ex, sqlOrderByHelper = ((stringBuilder, alias, model) -> {...}); on CustomerController.getAllCustomersOrderBy(...);
             */
             sqlOrderByHelper.appendOrderBy(stringBuilder, alias, null);
+            log.debug("after stringBuilder thru implement = {}", stringBuilder.toString()); // Last step => select * from h2_shop.customers ORDER BY FULL_NAME asc,...
         }
-        log.debug("after stringBuilder thru implement = {}",stringBuilder.toString()); // Last step => select * from h2_shop.customers ORDER BY FULL_NAME asc,...
         return executeQueryByBeanPropertyRowMapper(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
     }
 
-    public List<T> selectAll(Class<T> aBeanClass,StringBuilder stringBuilderSql, SqlOrderByHelper<T> sqlOrderByHelper) {
-        if (sqlOrderByHelper != null) {
-            HashMap<String,Object> params = new HashMap<>();
-            String alias = SQLSyntaxCommon.ALIAS;
+    ///  Description of process get key and value from object see on JdbcInsertUpdateDeleteHelper->Dynamic insert statement
+    public List<T> selectAll(Class<T> aBeanClass, SqlOrderByHelper<T> sqlOrderByHelper, SqlWhereHelper<T> sqlWhereHelper, T model) {
+        StringBuilder stringBuilder = new StringBuilder()
+                .append(SQLSyntaxCommon.SELECT_START)
+                .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
+        String alias = SQLSyntaxCommon.ALIAS;
+        log.debug("before stringBuilder thru implements = {}", stringBuilder.toString()); // select * from h2_shop.customers
 
+        if (sqlWhereHelper != null) {
+            // This way for java pojo that have subclass
+            HashMap<String, Object> params = new HashMap<>();
+            List<Field> fields = new ArrayList<>();
+            Class<T> aClass = (Class<T>) model.getClass();
+
+            stringBuilder
+                    .append(" ")
+                    .append(alias)
+                    .append(" ")
+                    .append(SQLSyntaxCommon.WHERE_TRUE);
+
+            sqlWhereHelper.appendWhere(stringBuilder, alias, model);
+            log.debug("after stringBuilder thru implement (not replace value)= {}", stringBuilder.toString()); // select * from h2_shop.customers alias where 1 = 1 and alias.full_name = {full_name}  and alias.birthday = {birthday}  and alias.level = {level}
+
+            if (aClass.getSuperclass() != null) { // Case class have primary key on subclass
+                Class<?> superclass = aClass.getSuperclass();
+                for (Field field : superclass.getDeclaredFields()) {
+                    fields.add(field);
+                }
+            }
+
+            for (Field field : aClass.getDeclaredFields()) { // Case class have no primary key on subclass
+                fields.add(field);
+            }
+
+            for (Field field : fields) {
+                field.setAccessible(true);
+                Column columnAnnotation = null;
+                String name = null;
+                Object value = null;
+
+                if (field.isAnnotationPresent(Column.class)) {
+                    columnAnnotation = field.getAnnotation(Column.class);
+                }
+
+                if (columnAnnotation != null) {
+                    name = columnAnnotation.value();
+                }
+                else {
+                    name = field.getName();
+                }
+
+                try {
+                    value = field.get(model);
+                    if (value != null) {
+                        params.put("{" + name + "}", value);
+                    }
+                }
+                catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+                // Now params has all field & value then replace value to key on stringBuilder
+            }
+            replaceAssignValuesByHasMap(stringBuilder, params);
+            log.debug("after stringBuilder thru implement (replaced value)= {}", stringBuilder.toString()); // select * from h2_shop.customers alias where 1 = 1 and alias.full_name = 'Lon Slider'  and alias.birthday = '1989-01-29'  and alias.level = 'A+'
+        } // End where helper
+
+        if (sqlOrderByHelper != null && sqlWhereHelper != null) {
+            stringBuilder
+                    .append(" order by ");
+            sqlOrderByHelper.appendOrderBy(stringBuilder, alias, null);
+            log.debug("after stringBuilder thru implement (has where helper) = {}", stringBuilder.toString());
+        }
+
+        if (sqlOrderByHelper != null && sqlWhereHelper == null) {
+            stringBuilder
+                    .append(" ")
+                    .append(alias)
+                    .append(" order by ");
+            sqlOrderByHelper.appendOrderBy(stringBuilder, alias, null);
+            log.debug("after stringBuilder thru implement (no where helper) = {}", stringBuilder.toString());
+        }
+
+        // Now sql already query ex,
+        // select * from h2_shop.customers alias where 1 = 1  and alias.birthday = '1989-01-29'  order by  alias.level desc, alias.full_name asc limit 10
+        // select * from h2_shop.customers alias where 1 = 1  and alias.birthday = '1989-01-29'
+        // select * from h2_shop.customers order by  alias.level desc, alias.full_name asc limit 10
+        // select * from h2_shop.customers
+        return executeQueryByBeanPropertyRowMapper(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
+    }
+
+    public List<T> selectAll(Class<T> aBeanClass, StringBuilder stringBuilderSql, SqlOrderByHelper<T> sqlOrderByHelper) {
+        HashMap<String, Object> params = new HashMap<>();
+        if (sqlOrderByHelper != null) {
+            String alias = SQLSyntaxCommon.ALIAS;
             // create sql order by as dynamic
             StringBuilder stringBuilderOrderBy = new StringBuilder();
             stringBuilderOrderBy.append(" as ")
@@ -73,23 +167,24 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
                     .append(" order by ");
             // after thru implement = select * from h2_shop.customers as alias order by alias.level desc limit 100;
             sqlOrderByHelper.appendOrderBy(stringBuilderOrderBy, alias, null);
-
             // replace stringBuilderOrderBy as string to [SQL_CONDITION] on stringBuilderSql
             params.put("[SQL_CONDITION]", stringBuilderOrderBy.toString());
-            replaceAssignValuesByHasMap(stringBuilderSql, params);
-            // log.debug("stringBuilderSql after replace = {}", stringBuilderSql.toString()); // SELECT * FROM H2_SHOP.CUSTOMERS  as alias order by  alias.level desc limit 100;
+        } else {
+            params.put("[SQL_CONDITION]", "");
         }
+        replaceAssignValuesByHasMap(stringBuilderSql, params);
+        // log.debug("stringBuilderSql after replace = {}", stringBuilderSql.toString()); // SELECT * FROM H2_SHOP.CUSTOMERS  as alias order by  alias.level desc limit 100;
         return executeQueryByBeanPropertyRowMapper(stringBuilderSql.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
     }
 
     public List<T> selectAll(Class<T> aBeanClass) {
         StringBuilder stringBuilder = new StringBuilder()
-                  .append(SQLSyntaxCommon.SELECT_START)
-                  .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
+                .append(SQLSyntaxCommon.SELECT_START)
+                .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
         return executeQueryByBeanPropertyRowMapper(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
     }
 
-    public List<T> selectAll(String sql,Class<T> aBeanClass) {
+    public List<T> selectAll(String sql, Class<T> aBeanClass) {
         return executeQueryByBeanPropertyRowMapper(sql, new BeanPropertyRowMapper<T>(aBeanClass));
     }
 
@@ -97,37 +192,34 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         StringBuilder stringBuilder = new StringBuilder()
                 .append(SQLSyntaxCommon.SELECT_START)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
-                .append(" where "+columnName+" like ")
+                .append(" where " + columnName + " like ")
                 .append(SQLSyntaxCommon.ASSIGN);
-        value = "%"+value.toString()+"%";
+        value = "%" + value.toString() + "%";
         // log.debug("sql = {} , value = {}",stringBuilder.toString(),value); // sql = select * from H2_SCHOOL.STUDENTS where level like ? , value = %B%
         return executeQueryByBeanPropertyRowMapperParams(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass), value);
     }
 
-    public <U> List<U> selectAllOnlyColumn(Class<T> aBeanClass, Class<U> aTypeClass ,String columnName) {
+    public <U> List<U> selectAllOnlyColumn(Class<T> aBeanClass, Class<U> aTypeClass, String columnName) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append("select ")
                 .append(columnName)
                 .append(" from ")
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
-        return executeQueryForListProperty(stringBuilder.toString(),aTypeClass);
+        return executeQueryForListProperty(stringBuilder.toString(), aTypeClass);
     }
 
-    public <U> List<U> selectAllOnlyColumnWhereLikeAColumn(Class<T> aBeanClass, Class<U> aTypeClass ,String columnName,String uniqColumName, Object uniqValue) {
+    public <U> List<U> selectAllOnlyColumnWhereLikeAColumn(Class<T> aBeanClass, Class<U> aTypeClass, String columnName, String uniqColumName, Object uniqValue) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append("select ")
                 .append(columnName)
                 .append(" from ")
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
-                .append(" where "+uniqColumName+" like ")
+                .append(" where " + uniqColumName + " like ")
                 .append(SQLSyntaxCommon.ASSIGN);
-        uniqValue = "%"+uniqValue.toString()+"%";
-        log.debug("sql = {} , value = {}",stringBuilder.toString(),uniqValue);
-        return executeQueryForListPropertyParams(stringBuilder.toString(),aTypeClass,uniqValue);
+        uniqValue = "%" + uniqValue.toString() + "%";
+        log.debug("sql = {} , value = {}", stringBuilder.toString(), uniqValue);
+        return executeQueryForListPropertyParams(stringBuilder.toString(), aTypeClass, uniqValue);
     }
-
-
-
 
 
     // ------------ Select as An Object ------------
@@ -136,56 +228,48 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
                 .append(SQLSyntaxCommon.SELECT_START)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
                 .append(" where ")
-                .append(uniqColumnName+" ")
+                .append(uniqColumnName + " ")
                 .append(SQLSyntaxCommon.ASSIGN_EQUAL);
         return executeQueryForObjectByBeanPropertyRowMapperParams(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass), uniqValue);
     }
 
-    public T selectOne(String sql , Class<T> aBeanClass, Object uniqValue) {
+    public T selectOne(String sql, Class<T> aBeanClass, Object uniqValue) {
         return executeQueryForObjectByBeanPropertyRowMapperParams(sql, new BeanPropertyRowMapper<T>(aBeanClass), uniqValue);
     }
 
-    public T selectOne(String sql , Class<T> aBeanClass) {
+    public T selectOne(String sql, Class<T> aBeanClass) {
         return executeQueryForObjectByBeanPropertyRowMapper(sql, new BeanPropertyRowMapper<T>(aBeanClass));
     }
 
 
-
-
-
-
     // ------------ Select as An Property ------------
-    public <U> U selectOneOnlyColumn(Class<T> aBeanClass, Class<U> aTypeClass ,String columnName,String uniqColumName, Object uniqValue) {
+    public <U> U selectOneOnlyColumn(Class<T> aBeanClass, Class<U> aTypeClass, String columnName, String uniqColumName, Object uniqValue) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append("select ")
                 .append(columnName)
                 .append(" from ")
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
-                .append(" where "+uniqColumName)
+                .append(" where " + uniqColumName)
                 .append(SQLSyntaxCommon.ASSIGN_EQUAL);
-        return executeQueryForObjectPropertyParamsNoMapping(stringBuilder.toString(),aTypeClass,uniqValue);
+        return executeQueryForObjectPropertyParamsNoMapping(stringBuilder.toString(), aTypeClass, uniqValue);
     }
 
-    public Integer selectCount( Class<T> aBeanClass , String uniqColumnName, Object uniqValue) {
+    public Integer selectCount(Class<T> aBeanClass, String uniqColumnName, Object uniqValue) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append(SQLSyntaxCommon.SELECT_COUNT)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
                 .append(" where ")
                 .append(uniqColumnName)
                 .append(SQLSyntaxCommon.ASSIGN_EQUAL);
-        return executeQueryForObjectPropertyParamsNoMapping(stringBuilder.toString(),Integer.class,uniqValue);
+        return executeQueryForObjectPropertyParamsNoMapping(stringBuilder.toString(), Integer.class, uniqValue);
     }
 
-    public Integer selectCount( Class<T> aBeanClass ) {
+    public Integer selectCount(Class<T> aBeanClass) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append(SQLSyntaxCommon.SELECT_COUNT)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
-        return executeQueryForObjectPropertyNoMapping(stringBuilder.toString(),Integer.class);
+        return executeQueryForObjectPropertyNoMapping(stringBuilder.toString(), Integer.class);
     }
-
-
-
-
 
 
     // ------------ Select as List Or Object  ------------
@@ -196,13 +280,13 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         return executeResultSetExtractor(stringBuilder.toString(), resultSetExtractor);
     }
 
-    public <U> U selectBothWhereLikeAColumn(Class<T> aBeanClass, ResultSetExtractor<U> resultSetExtractor,String columnName, Object value) {
+    public <U> U selectBothWhereLikeAColumn(Class<T> aBeanClass, ResultSetExtractor<U> resultSetExtractor, String columnName, Object value) {
         StringBuilder stringBuilder = new StringBuilder()
                 .append(SQLSyntaxCommon.SELECT_START)
                 .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass))
-                .append(" where "+columnName+" like ")
+                .append(" where " + columnName + " like ")
                 .append(SQLSyntaxCommon.ASSIGN);
-        value = "%"+value.toString()+"%";
+        value = "%" + value.toString() + "%";
         return executeResultSetExtractorParams(stringBuilder.toString(), resultSetExtractor, value);
     }
 
@@ -213,7 +297,7 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         return stringBuilderSQL;
     }
 
-    private static void replaceAssignValuesByHasMap(StringBuilder stringBuilderSQL, HashMap<String,Object> params) {
+    private static void replaceAssignValuesByHasMap(StringBuilder stringBuilderSQL, HashMap<String, Object> params) {
         String sql = stringBuilderSQL.toString();
         int paramCount = params.size();
         String[] keys = new String[paramCount];
@@ -223,30 +307,42 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
             keys[i] = key;
             i++;
         }
-        i=0;
+        i = 0;
         for (Object value : params.values()) {
             values[i] = value;
             i++;
         }
-        for (i = 0; i < paramCount ; i++) {
+        for (i = 0; i < paramCount; i++) {
             Object value = values[i];
             String key = keys[i];
             if (key.startsWith("[")) {
-                if (value == null ) {
-                    sql = sql.replace(key,"null");
+                if (value == null) {
+                    sql = sql.replace(key, "null");
                 } else {
                     sql = sql.replace(key, value.toString());
                 }
-            }
-            else {
-                if ( value == null ) {
+            } else {
+                if (value == null) {
                     sql = sql.replace(key, "null"); // replace without ' '
                 }
-                if ( isNumeric(value) || isBool(value) ) {
+                if (isNumeric(value) || isBool(value)) {
                     sql = sql.replace(key, value.toString()); // replace without ' '
                 }
+                if (isDate(value)){
+                    // Define the formatter for the original date string, which uses English day/month names.
+                    DateTimeFormatter originalFormatter = DateTimeFormatter.ofPattern("E MMM dd HH:mm:ss z yyyy", Locale.ENGLISH);
+                    // Parse the original string into a ZonedDateTime object.
+                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(value.toString(), originalFormatter);
+                    // Define the formatter for the desired output format, which is locale-independent.
+                    DateTimeFormatter targetFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                    // Format the ZonedDateTime object into the new string.
+                    String newDateString = zonedDateTime.format(targetFormatter);
+                    // log.debug("Original date string: {}", value.toString()); // e.g., "Mon Jan 01 00:00:00 UTC 2024"
+                    // log.debug("New date string: {}", newDateString); // e.g., "2024-01-01"
+                    sql = sql.replace(key, "'" + newDateString + "'"); // replace with ' '
+                }
                 else {
-                    sql = sql.replace(key, "'"+value+"'"); // replace with ' '
+                    sql = sql.replace(key, "'" + value + "'"); // replace with ' '
                 }
             }
 
@@ -273,7 +369,18 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         }
         try {
             return str instanceof Boolean;
-        } catch (IllegalArgumentException | NullPointerException e ) {
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return false;
+        }
+    }
+
+    private static boolean isDate(Object str) {
+        if (str == null || str.toString().isEmpty()) {
+            return false;
+        }
+        try {
+            return str instanceof Date;
+        } catch (IllegalArgumentException | NullPointerException e) {
             return false;
         }
     }
