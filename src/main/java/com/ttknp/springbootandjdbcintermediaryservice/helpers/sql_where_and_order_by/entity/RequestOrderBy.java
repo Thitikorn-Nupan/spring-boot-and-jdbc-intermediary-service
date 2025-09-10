@@ -75,6 +75,11 @@ public class RequestOrderBy <T> {
         Field[] fields = aClass.getDeclaredFields();
         compactColumnAndAssignValue(stringBuilder, alias, fields);
         // log.debug("sql = {}",stringBuilder.toString()); // and alias.fullName = {fullName} and alias.level = {level}
+        if (length != null && orderBy == null) { // only limit when no order by
+            stringBuilder
+                    .append(" limit ")
+                    .append(length);
+        }
         return stringBuilder.toString();
     }
 
@@ -97,6 +102,12 @@ public class RequestOrderBy <T> {
         // Now fields already works
         compactColumnAndAssignValue(stringBuilder,alias,fields);
         // log.debug("sql = {}",stringBuilder.toString()); // and alias.fullName = {fullName} and alias.level = {level}
+        if (length != null && orderBy == null) { // only limit when no order by
+            stringBuilder
+                    .append(" limit ")
+                    .append(length);
+        }
+
         return stringBuilder.toString();
     }
 
