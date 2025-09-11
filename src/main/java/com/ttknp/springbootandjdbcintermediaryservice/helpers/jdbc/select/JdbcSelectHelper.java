@@ -6,6 +6,7 @@ import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_common.SQLSynt
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlWhereHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.services.useful.UsefulGetSQLStatement;
 import com.ttknp.springbootandjdbcintermediaryservice.services.useful.UsefulJdbcService;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,6 +156,96 @@ public class JdbcSelectHelper<T> extends JdbcExecuteHelper {
         // select * from h2_shop.customers
         return executeQueryByBeanPropertyRowMapper(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
     }
+
+    /// Same as above but have custom alias
+    public List<T> selectAll(Class<T> aBeanClass, @Nullable String customAlias , SqlOrderByHelper<T> sqlOrderByHelper, SqlWhereHelper<T> sqlWhereHelper, T model) {
+        StringBuilder stringBuilder = new StringBuilder()
+                .append(SQLSyntaxCommon.SELECT_START)
+                .append(usefulJdbcService.getSchemaAndTableNameOnTableAnnotation(aBeanClass));
+        String alias = (customAlias == null) || (customAlias.isEmpty()) ? " " : customAlias;
+
+        if (sqlWhereHelper != null) {
+            // This way for java pojo that have subclass
+            HashMap<String, Object> params = new HashMap<>();
+            List<Field> fields = new ArrayList<>();
+            Class<T> aClass = (Class<T>) model.getClass();
+
+            stringBuilder
+                    .append(" ")
+                    .append(alias)
+                    .append(" ")
+                    .append(SQLSyntaxCommon.WHERE_TRUE);
+
+            sqlWhereHelper.appendWhere(stringBuilder, alias, model);
+            log.debug("after stringBuilder thru implement (not replace value)= {}", stringBuilder.toString()); // select * from h2_shop.customers alias where 1 = 1 and alias.full_name = {full_name}  and alias.birthday = {birthday}  and alias.level = {level}
+
+            if (aClass.getSuperclass() != null) { // Case class have primary key on subclass
+                Class<?> superclass = aClass.getSuperclass();
+                for (Field field : superclass.getDeclaredFields()) {
+                    fields.add(field);
+                }
+            }
+
+            for (Field field : aClass.getDeclaredFields()) { // Case class have no primary key on subclass
+                fields.add(field);
+            }
+
+            for (Field field : fields) {
+                field.setAccessible(true);
+                Column columnAnnotation = null;
+                String name = null;
+                Object value = null;
+
+                if (field.isAnnotationPresent(Column.class)) {
+                    columnAnnotation = field.getAnnotation(Column.class);
+                }
+
+                if (columnAnnotation != null) {
+                    name = columnAnnotation.value();
+                }
+                else {
+                    name = field.getName();
+                }
+
+                try {
+                    value = field.get(model);
+                    if (value != null) {
+                        params.put("{" + name + "}", value);
+                    }
+                }
+                catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+                // Now params has all field & value then replace value to key on stringBuilder
+            }
+            replaceAssignValuesByHasMap(stringBuilder, params);
+            log.debug("after stringBuilder thru implement (replaced value)= {}", stringBuilder.toString()); // select * from h2_shop.customers alias where 1 = 1 and alias.full_name = 'Lon Slider'  and alias.birthday = '1989-01-29'  and alias.level = 'A+'
+        } // End where helper
+
+        if (sqlOrderByHelper != null && sqlWhereHelper != null) {
+            stringBuilder
+                    .append(" order by ");
+            sqlOrderByHelper.appendOrderBy(stringBuilder, alias, null);
+            log.debug("after stringBuilder thru implement (has where helper) = {}", stringBuilder.toString());
+        }
+
+        if (sqlOrderByHelper != null && sqlWhereHelper == null) {
+            stringBuilder
+                    .append(" ")
+                    .append(alias)
+                    .append(" order by ");
+            sqlOrderByHelper.appendOrderBy(stringBuilder, alias, null);
+            log.debug("after stringBuilder thru implement (no where helper) = {}", stringBuilder.toString());
+        }
+
+        // Now sql already query ex,
+        // select * from h2_shop.customers   where 1 = 1 and full_name = 'Lon Slider'  and birthday = '1989-01-29'  and level = 'A+'  order by level asc,full_name desc,birthday asc limit 10
+        // select * from h2_shop.customers   where 1 = 1 and id = '4b5f0b77-7ad3-4d22-b9cb-c8b2bf526d27'  and birthday = '1989-01-29'  and level = 'A+'  limit 10
+        // select * from h2_shop.customers   order by level asc,full_name asc,birthday asc limit 10
+        // select * from h2_shop.customers
+        return executeQueryByBeanPropertyRowMapper(stringBuilder.toString(), new BeanPropertyRowMapper<T>(aBeanClass));
+    }
+
 
     public List<T> selectAll(Class<T> aBeanClass, StringBuilder stringBuilderSql, SqlOrderByHelper<T> sqlOrderByHelper) {
         HashMap<String, Object> params = new HashMap<>();

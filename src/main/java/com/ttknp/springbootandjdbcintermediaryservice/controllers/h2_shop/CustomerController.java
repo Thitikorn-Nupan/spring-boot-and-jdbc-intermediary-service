@@ -53,33 +53,73 @@ public class CustomerController {
 
 
     /**
-      If @RequestBody List<OrderBy> orderBy you can pass json like this
-      [
-        {
-          "column": "birthday",
-          "direction": "asc"
-        },
-        {
-          "column": "full_name",
-          "direction": "desc"
-        }
-      ]
-      <p>
-      If @RequestBody RequestOrderBy requestOrderBy you can pass json like this
-      {
-        "length": 10,
-        "orderBy": [
-          {
-            "column": "birthday",
-            "direction": "asc"
-          },
-          {
-            "column": "full_name",
-            "direction": "desc"
-          }
+     // All below are example json you can pass in postman body raw json/application
+     // Case no order by no where or set body as none
+     <br/>
+     {
+
+     }
+     <br/>
+     // Case has order by no where
+     <br/>
+     {
+         "length" :10,
+         "orderBy" : [
+                     {
+                        "column": "level",
+                        "direction": "asc"
+                     }
+                     ,
+                     {
+                        "column": "full_name",
+                        "direction": "asc"
+                     }
+                     ,
+                     {
+                        "column": "birthday",
+                        "direction": "asc"
+                     }
         ]
-      }
-    */
+     }
+     <br/>
+     // Case no order by has where
+     <br/>
+     {
+         "length" :10,
+         "whereModel": {
+            "id": "4b5f0b77-7ad3-4d22-b9cb-c8b2bf526d27",
+            "birthday": "1989-01-29",
+            "level": "A+"
+        }
+     }
+     <br/>
+     // Case has order by has where
+     {
+         "length" :10,
+         "orderBy" : [
+             {
+                 "column": "level",
+                 "direction": "asc"
+             }
+             ,
+             {
+                 "column": "full_name",
+                 "direction": "desc"
+             }
+             ,
+             {
+                 "column": "birthday",
+                 "direction": "asc"
+             }
+        ],
+         "whereModel": {
+            "fullName": "Lon Slider",
+            "birthday": "1989-01-29",
+            "level": "A+"
+         }
+     }
+     <br/>
+     */
     @GetMapping(value = "/selectAllOrderBy")
     private ResponseEntity<List<Customer>> getAllCustomersOrderBy(@RequestBody(required = false) RequestOrderBy<Customer> requestOrderBy) {
         SqlOrderByHelper<Customer> sqlOrderByHelper = null;
@@ -112,7 +152,6 @@ public class CustomerController {
                 .body(customerService.getAllCustomersOrderBy(sqlOrderByHelper));
     }
 
-
     @GetMapping(value = "/selectAllOrderByAndReplaceAssignValues")
     private ResponseEntity<List<Customer>> getAllCustomersOrderByAndReplaceAssignValues(@RequestBody(required = true) RequestOrderBy<Customer> requestOrderBy) {
         SqlOrderByHelper<Customer> sqlOrderByHelper = null;
@@ -128,7 +167,6 @@ public class CustomerController {
                 .status(HttpStatus.ACCEPTED)
                 .body(customerService.getAllCustomersOrderByAndReplaceAssignValues(sqlOrderByHelper));
     }
-
 
     @GetMapping(value = "/selectAllWhereAndOrderBy")
     private ResponseEntity<List<Customer>> getAllCustomersWhereAndOrderBy(@RequestBody(required = false) RequestOrderBy<Customer> requestOrderBy) {
@@ -157,5 +195,33 @@ public class CustomerController {
                 .status(HttpStatus.ACCEPTED)
                 .body(customerService.getAllCustomersWhereAndOrderBy(sqlOrderByHelper, sqlWhereHelper, customer));
     }
+
+    @GetMapping(value = "/selectAllWhereAndOrderByCustomAlias")
+    private ResponseEntity<List<Customer>> getAllCustomersWhereAndOrderByCustomAlias(@RequestBody(required = false) RequestOrderBy<Customer> requestOrderBy) {
+        SqlWhereHelper<Customer> sqlWhereHelper = null;
+        SqlOrderByHelper<Customer> sqlOrderByHelper = null;
+        Customer customer = requestOrderBy.getWhereModel() != null ? requestOrderBy.getWhereModel() : null;
+        if (requestOrderBy != null) {
+            if (requestOrderBy.getWhereModel() != null) {
+                sqlWhereHelper = ((stringBuilder, alias, model) -> {
+                    String whereAsString = requestOrderBy.getWhereModelIsPkSubclassCustomAlias(alias);
+                    stringBuilder.append(whereAsString);
+                    log.debug("sql after append where = {}",stringBuilder.toString());
+                });
+            }
+
+            if (requestOrderBy.getOrderBy() != null && !requestOrderBy.getOrderBy().isEmpty()) {
+                sqlOrderByHelper = ((stringBuilder, alias, model) -> {
+                    String orderByAsString = requestOrderBy.getOrderByCustomAlias(alias, requestOrderBy.getOrderBy());
+                    stringBuilder.append(orderByAsString);
+                    log.debug("sql after append order by = {}",stringBuilder.toString());
+                });
+            }
+        }
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(customerService.getAllCustomersWhereAndOrderByCustomAlias(sqlOrderByHelper, sqlWhereHelper, customer,"c"));
+    }
+
 
 }

@@ -5,6 +5,7 @@ import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_orde
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.insert_update_delete.JdbcInsertUpdateDeleteHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.jdbc.select.JdbcSelectHelper;
 import com.ttknp.springbootandjdbcintermediaryservice.helpers.sql_where_and_order_by.SqlWhereHelper;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,10 @@ public class CustomerService {
 
     public List<Customer> getAllCustomersWhereAndOrderBy(SqlOrderByHelper<Customer> sqlOrderByHelper, SqlWhereHelper<Customer> sqlWhereHelper, Customer customer) {
         return jdbcSelectHelper.selectAll(Customer.class , sqlOrderByHelper, sqlWhereHelper, customer);
+    }
+
+    public List<Customer> getAllCustomersWhereAndOrderByCustomAlias(SqlOrderByHelper<Customer> sqlOrderByHelper, SqlWhereHelper<Customer> sqlWhereHelper, Customer customer, @Nullable String customAlias) {
+        return jdbcSelectHelper.selectAll(Customer.class ,customAlias, sqlOrderByHelper, sqlWhereHelper, customer);
     }
 
     public List<Customer> getAllCustomers() {
